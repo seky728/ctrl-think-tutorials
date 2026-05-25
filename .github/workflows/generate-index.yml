@@ -14,7 +14,7 @@ jobs:
 
       - name: Vygenerovat index.html
         run: |
-          echo "<!DOCTYPE html><html><head><title>Ctrl+Think Tutorials</title></head><body>" > index.html
+          echo '<!DOCTYPE html><html data-theme="dark"><head><title>Ctrl+Think Tutorials</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"></head><body><main class="container">' > index.html
           echo "<h1>Ctrl+Think - Seznam tutoriálů</h1><ul>" >> index.html
           for file in *.html; do
             if [ "$file" != "index.html" ]; then
