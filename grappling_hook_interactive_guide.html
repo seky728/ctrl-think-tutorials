@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UE5 Grappling Hook - Interaktivní Průvodce</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Teplé neutrální tóny s jemným akcentem (Stone-50 pozadí, Slate-800 text, Sky-600 a Amber-500 pro akcenty). -->
+    <!-- Application Structure Plan: Interaktivní dashboard rozdělený na postranní navigační panel s vizualizací postupu a hlavní čtecí oblast. Uživatel postupuje krok za krokem, což usnadňuje pochopení složité logiky Blueprintů. Nejdůležitější pravidla (Golden Rules) jsou vizuálně oddělena jako interaktivní karty pro maximální zapamatovatelnost. Struktura je zvolena pro plynulé, nerušené učení bez přehlcení textem. -->
+    <!-- Visualization & Content Choices: Data (Postup) -> Goal: Inform -> Metoda: Chart.js Doughnut Chart -> Interakce: Aktualizuje se kliknutím na "Dokončit krok" -> Justifikace: Vizuální odměna za postup. Texty/Blueprinty -> Goal: Organize -> Metoda: Dynamické HTML sekce -> Interakce: Přepínání přes menu -> Justifikace: Člení složitý tutoriál. Library: Chart.js a Vanilla JS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 250px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+                max-height: 300px;
+            }
+        }
+        .step-card {
+            transition: all 0.3s ease;
+        }
+        .step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .active-step {
+            border-left: 4px solid #0284c7;
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <header class="bg-white shadow-sm border-b border-stone-200 py-6 sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">UE5: Grappling Hook <span class="text-sky-600">MVP</span></h1>
+                <p class="mt-1 text-sm text-slate-500">Interaktivní průvodce tvorbou přitahovacího háku a fyziky v Unreal Engine 5</p>
+            </div>
+            <div class="hidden md:flex space-x-2 text-2xl">
+                🔗 🎯 📦
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <div class="mb-8 space-y-4">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <h2 class="text-xl font-bold mb-2">O tomto průvodci</h2>
+                <p class="text-slate-600">
+                    Tato aplikace vás provede vytvořením plně funkčního základu pro přitahovací hák. Systém umí vystřelit vizuální lano, detekovat povrch a následně buď <strong>přitáhnout hráče ke zdi</strong>, nebo <strong>strhnout fyzikální krabici k hráči</strong>. Postupujte podle kroků níže.
+                </p>
+            </div>
+            
+            <div class="bg-amber-50 p-6 rounded-xl shadow-sm border border-amber-200">
+                <h3 class="text-lg font-bold text-amber-900 mb-3 flex items-center">
+                    <span class="mr-2 text-xl">⚡</span> Než začneme (Předpoklady)
+                </h3>
+                <ul class="list-disc pl-5 space-y-2 text-amber-800 text-sm md:text-base">
+                    <li><strong>Výchozí projekt:</strong> Začínáme s čistým <strong>Third Person</strong> template projektem (doporučeno mít zapnutý Starter Content kvůli testovacím krabicím).</li>
+                    <li><strong>Verze Enginu:</strong> Tutoriál je napsán a testován přímo na míru pro <strong>Unreal Engine 5.6.1</strong>.</li>
+                    <li><strong class="text-red-700">Důležité upozornění:</strong> Epic Games mezi verzemi často přejmenovává uzly (nodes) nebo přesouvá položky v panelu Details. Pokud používáte novější verzi, může se stát, že se nějaký uzel bude jmenovat mírně jinak (např. <em>Set End Location</em> se v jiných verzích jmenuje <em>Set Custom End Location</em>). Zachovejte chladnou hlavu, základní principy Blueprintů se nemění!</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <aside class="lg:col-span-1 space-y-6">
+                
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-6">
+                    <h3 class="text-lg font-bold mb-4 text-center">Váš Postup</h3>
+                    <div class="chart-container">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                    <p class="text-center text-sm text-slate-500 mt-2" id="progressText">0 ze 4 kroků dokončeno</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 p-4">
+                    <h3 class="text-lg font-bold mb-4 px-2">Fáze Implementace</h3>
+                    <nav id="stepNav" class="space-y-2">
+                    </nav>
+                </div>
+            </aside>
+
+            <section class="lg:col-span-2">
+                <div id="contentArea" class="bg-white rounded-xl shadow-sm border border-stone-200 p-6 md:p-10 min-h-[500px]">
+                </div>
+                
+                <div class="mt-6 flex justify-end">
+                    <button id="markDoneBtn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-6 rounded-lg shadow transition-colors hidden">
+                        Označit krok za dokončený ✔️
+                    </button>
+                </div>
+            </section>
+
+        </div>
+
+        <section class="mt-12 mb-8">
+            <h2 class="text-2xl font-extrabold text-slate-900 mb-6 flex items-center">
+                <span class="text-amber-500 mr-2">⚠️</span> Zlatá Pravidla (Best Practices)
+            </h2>
+            <p class="mb-6 text-slate-600">Nejčastější chyby při práci s Chaos fyzikou v UE5 a jak se jim vyhnout. Klikněte na kartu pro detail.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="rulesGrid">
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-6 text-center text-sm">
+        <p>Vytvořeno pro vývojáře v Unreal Engine 5.</p>
+    </footer>
+
+    <script>
+        const tutorialData = [
+            {
+                id: 1,
+                title: "1. Komunikační rozhraní (BPI)",
+                icon: "🔌",
+                intro: "Abychom nemuseli ve hře složitě hádat, co jsme trefili pomocí uzlu 'Cast To', vytvoříme si univerzální komunikační kanál.",
+                content: `
+                    <h4 class="font-bold text-lg text-slate-800 mb-2">Vytvoření Blueprint Interface</h4>
+                    <ol class="list-decimal pl-5 space-y-3 text-slate-700 mb-6">
+                        <li>V Content Browseru vytvoř <strong>Blueprint Interface</strong> a pojmenuj ho <code class="bg-stone-100 px-1 rounded text-pink-600">BPI_GrappleTarget</code>.</li>
+                        <li>Otevři ho a vytvoř <strong>dvě funkce</strong>:</li>
+                        <ul class="list-disc pl-5 mt-2 space-y-2">
+                            <li><strong>GetGrappleType</strong>: V panelu Details přidej <em>Output</em> parametr <code class="bg-stone-100 px-1 rounded">IsPullable</code> (typ Boolean). Slouží ke zjištění, zda objekt můžeme strhnout.</li>
+                            <li><strong>ApplyGrapplePull</strong>: V panelu Details přidej <em>Input</em> parametr <code class="bg-stone-100 px-1 rounded">PlayerLocation</code> (typ Vector). Tímto předáme objektu souřadnice hráče, aby si objekt mohl sám vypočítat směr letu.</li>
+                        </ul>
+                        <li>Ulož a zkompiluj.</li>
+                    </ol>
+                    <div class="bg-sky-50 border-l-4 border-sky-500 p-4 rounded text-sm text-sky-900">
+                        <strong>Proč to děláme?</strong> Interface nám umožní vyslat zprávu naslepo. Pokud zasažený objekt rozhraní nemá (např. běžná zeď), prostě se nic nestane a my víme, že máme přitáhnout hráče.
+                    </div>
+                `
+            },
+            {
+                id: 2,
+                title: "2. Přitahovatelná krabice",
+                icon: "📦",
+                intro: "Zde aplikujeme kritické pravidlo vývoje: Logika pohybu patří do objektu, který se hýbe. Hráč krabici netahá, pouze jí předává své souřadnice.",
+                content: `
+                    <h4 class="font-bold text-lg text-slate-800 mb-2">Příprava BP_PullableBox</h4>
+                    <ol class="list-decimal pl-5 space-y-3 text-slate-700 mb-6">
+                        <li>Vytvoř Blueprint třídy Actor: <code class="bg-stone-100 px-1 rounded text-pink-600">BP_PullableBox</code>.</li>
+                        <li>Přidej <strong>Static Mesh</strong> (kostku). Zaškrtni <strong>Simulate Physics</strong> a Collision nastav na <em>PhysicsActor</em>.</li>
+                        <li class="text-red-600 font-bold">Kritická oprava: Přetáhni Static Mesh na DefaultSceneRoot, čímž ho nahradíš. Mesh se musí stát kořenem!</li>
+                        <li>V <strong>Class Settings</strong> přidej implementaci rozhraní <code class="bg-stone-100 px-1 rounded">BPI_GrappleTarget</code>.</li>
+                        <li>V implementaci funkce <code class="bg-stone-100 px-1 rounded">GetGrappleType</code> zaškrtni pin <code class="bg-stone-100 px-1 rounded">IsPullable</code> na True.</li>
+                    </ol>
+
+                    <h4 class="font-bold text-lg text-slate-800 mb-2 mt-4">Fyzikální logika (Event Graph)</h4>
+                    <div class="bg-stone-800 text-stone-200 p-4 rounded-lg font-mono text-sm space-y-2 mb-4 overflow-x-auto">
+                        <div class="text-green-400">Event Apply Grapple Pull -></div>
+                        <div>&nbsp;&nbsp;Wake Rigid Body -></div>
+                        <div>&nbsp;&nbsp;Set Physics Angular Velocity (0,0,0) -></div>
+                        <div>&nbsp;&nbsp;Set Physics Linear Velocity (New Vel: <em>Výpočet níže</em>)</div>
+                    </div>
+                    <p class="text-slate-700 mb-2"><strong>Výpočet směru (New Vel):</strong></p>
+                    <ul class="list-disc pl-5 text-slate-700 space-y-1">
+                        <li>Získej směr: <code class="bg-stone-100 px-1 rounded">Get Unit Direction</code> (From: Actor Location, To: PlayerLocation).</li>
+                        <li>Vynásob silou (Multiply), např. 1500.</li>
+                        <li>Přidej Vztlak (Add Vector): Z = 500. Zabrání to tření o podlahu.</li>
+                    </ul>
+                `
+            },
+            {
+                id: 3,
+                title: "3. Hráč a lano",
+                icon: "🧗",
+                intro: "Příprava herní postavy, přidání komponenty lana a nastavení proměnných pro zamezení chyb při spamování tlačítek.",
+                content: `
+                    <h4 class="font-bold text-lg text-slate-800 mb-2">Nastavení Third Person Character</h4>
+                    <ol class="list-decimal pl-5 space-y-3 text-slate-700 mb-6">
+                        <li>Otevři Blueprint hráče.</li>
+                        <li>Přidej komponent <strong>Cable Component</strong> a pojmenuj ho <code class="bg-stone-100 px-1 rounded text-pink-600">GrappleCable</code>.</li>
+                        <li>Nastavení v detailech kabelu:</li>
+                        <ul class="list-disc pl-5 mt-2 space-y-2">
+                            <li><strong>Visible</strong>: False (skryto ve výchozím stavu).</li>
+                            <li><strong>Cable Length</strong>: 0.0 (Zruší fyzikální prověšení, lano bude napnuté jako struna).</li>
+                            <li><strong>Enable Collision</strong>: False (Kabel nesmí fyzicky strkat do předmětů).</li>
+                        </ul>
+                        <li>V hierarchii přichyť kabel pod model hráče (Mesh) a do <em>Parent Socket</em> napiš např. <code class="bg-stone-100 px-1 rounded">hand_r</code>.</li>
+                        <li>Vytvoř novou proměnnou <code class="bg-stone-100 px-1 rounded">CanGrapple</code> (Boolean) a nastav výchozí hodnotu na <strong>True</strong>.</li>
+                    </ol>
+                    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded text-sm text-amber-900">
+                        Zrušení kolizí u lana je zásadní. V opačném případě by vyletělo a fyzicky odhodilo krabici dříve, než by se stihla spustit naše přitahovací logika.
+                    </div>
+                `
+            },
+            {
+                id: 4,
+                title: "4. Střelba a vyhodnocení",
+                icon: "🎯",
+                intro: "Finální propojení všech systémů. Detekce cíle, spuštění animace lana a rozhodnutí, jakou fyzikální akci provést.",
+                content: `
+                    <h4 class="font-bold text-lg text-slate-800 mb-2">Sekvence Event Graphu</h4>
+                    
+                    <h5 class="font-semibold text-slate-800 mt-4">A) Detekce (Trace)</h5>
+                    <p class="text-slate-700 mb-2">Při stisku tlačítka zkontroluj <code class="bg-stone-100 px-1 rounded">CanGrapple</code>. Pokud je True, nastav na False. Vykonej <strong>Line Trace By Channel</strong> dopředu z kamery.</p>
+
+                    <h5 class="font-semibold text-slate-800 mt-4">B) Animace Lana (Timeline)</h5>
+                    <p class="text-slate-700 mb-2">Při úspěšném Trace zapni viditelnost kabelu. Spusť <strong>Timeline</strong> (0.2s, float 0-1). V Update větvi updatuj konec lana přes <strong>Lerp(Vector)</strong> a <strong>Inverse Transform Location</strong>.</p>
+
+                    <h5 class="font-semibold text-slate-800 mt-4">C) Fyzikální Rozhodnutí</h5>
+                    <p class="text-slate-700 mb-2">Z pinu <em>Finished</em> (Timeline) zavolej zprávu <code class="bg-stone-100 px-1 rounded text-pink-600">Get Grapple Type</code> na zasaženém objektu.</p>
+                    <ul class="list-disc pl-5 text-slate-700 space-y-1 mb-4">
+                        <li><strong>TRUE (Krabice):</strong> Zavolej zprávu <em>Apply Grapple Pull</em> a předej lokaci hráče.</li>
+                        <li><strong>FALSE (Zeď):</strong> Zavolej <strong>Launch Character</strong>. ZOverride a XYOverride na True. Směr vypočti z hráče k Impact Pointu vynásobený silou.</li>
+                    </ul>
+
+                    <h5 class="font-semibold text-slate-800 mt-4">D) Úklid</h5>
+                    <p class="text-slate-700 mb-2">Obě větve sveď do uzlu <strong>Delay (0.5s)</strong>. Následně lano skryj (Set Visibility False) a <code class="bg-stone-100 px-1 rounded">CanGrapple</code> vrať na True.</p>
+                `
+            }
+        ];
+
+        const goldenRules = [
+            {
+                title: "Past jménem DefaultSceneRoot",
+                content: "Pokud objekt simuluje fyziku, jeho vizuální mesh musí být kořenem (Root) Blueprintu. Jinak fyzika odhodí model, ale souřadnice Actora zůstanou oddělené na místě vzniku."
+            },
+            {
+                title: "Input Spamming",
+                content: "V novém Enhanced Input systému nezapojuj jednorázovou střelbu na pin 'Triggered' (spouští se každý frame). Použij 'Started' a vytvoř logický zámek (proměnná CanGrapple)."
+            },
+            {
+                title: "Chaos Physics Spánek",
+                content: "UE5 automaticky uspává statické fyzikální objekty pro úsporu výkonu. Před nucenou manipulací přes uzly (Add Impulse / Set Velocity) vždy zavolej 'Wake Rigid Body'."
+            },
+            {
+                title: "Úhlová hybnost (Rotace)",
+                content: "Změna lineární rychlosti nestačí, pokud objekt ve vzduchu rotuje. Vždy vyresetuj i 'Angular Velocity', jinak fyzika smíchá tah s rotací a objekt poletí křivě (jako falšovaný míč)."
+            }
+        ];
+
+        let state = {
+            currentStep: 1,
+            completedSteps: new Set()
+        };
+
+        let progressChartInstance = null;
+
+        function initChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            progressChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Dokončeno', 'Zbývá'],
+                    datasets: [{
+                        data: [0, 4],
+                        backgroundColor: ['#0284c7', '#e7e5e4'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    animation: { animateScale: true, animateRotate: true }
+                }
+            });
+        }
+
+        function updateChart() {
+            const done = state.completedSteps.size;
+            const total = tutorialData.length;
+            progressChartInstance.data.datasets[0].data = [done, total - done];
+            progressChartInstance.update();
+            document.getElementById('progressText').innerText = `${done} z ${total} kroků dokončeno`;
+        }
+
+        function renderNavigation() {
+            const navContainer = document.getElementById('stepNav');
+            navContainer.innerHTML = '';
+
+            tutorialData.forEach(step => {
+                const btn = document.createElement('button');
+                const isCompleted = state.completedSteps.has(step.id);
+                
+                btn.className = `w-full text-left px-4 py-3 rounded-lg border border-transparent flex items-center justify-between step-card ${state.currentStep === step.id ? 'active-step text-sky-800' : 'text-slate-600 hover:bg-stone-100 border-stone-100'}`;
+                
+                btn.innerHTML = `
+                    <span class="font-medium flex items-center">
+                        <span class="mr-3 text-xl">${step.icon}</span> ${step.title}
+                    </span>
+                    <span>${isCompleted ? '✅' : ''}</span>
+                `;
+                
+                btn.onclick = () => {
+                    state.currentStep = step.id;
+                    renderNavigation();
+                    renderContent();
+                };
+                navContainer.appendChild(btn);
+            });
+        }
+
+        function renderContent() {
+            const contentArea = document.getElementById('contentArea');
+            const step = tutorialData.find(s => s.id === state.currentStep);
+            const markBtn = document.getElementById('markDoneBtn');
+
+            if (step) {
+                contentArea.innerHTML = `
+                    <div class="animate-[fadeIn_0.3s_ease-in-out]">
+                        <h2 class="text-3xl font-extrabold text-slate-900 mb-4 flex items-center">
+                            <span class="mr-3 bg-sky-100 text-sky-600 p-2 rounded-lg text-2xl">${step.icon}</span> 
+                            ${step.title}
+                        </h2>
+                        <p class="text-lg text-slate-600 mb-8 pb-6 border-b border-stone-200">
+                            ${step.intro}
+                        </p>
+                        <div class="prose prose-slate max-w-none">
+                            ${step.content}
+                        </div>
+                    </div>
+                `;
+
+                markBtn.classList.remove('hidden');
+                if (state.completedSteps.has(step.id)) {
+                    markBtn.innerText = "Krok je dokončen ✅";
+                    markBtn.classList.replace('bg-sky-600', 'bg-emerald-600');
+                    markBtn.classList.replace('hover:bg-sky-700', 'hover:bg-emerald-700');
+                    markBtn.disabled = true;
+                    markBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                } else {
+                    markBtn.innerText = "Označit krok za dokončený ✔️";
+                    markBtn.classList.replace('bg-emerald-600', 'bg-sky-600');
+                    markBtn.classList.replace('hover:bg-emerald-700', 'hover:bg-sky-700');
+                    markBtn.disabled = false;
+                    markBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        function renderRules() {
+            const rulesContainer = document.getElementById('rulesGrid');
+            rulesContainer.innerHTML = '';
+            
+            goldenRules.forEach((rule, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-stone-200 p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group";
+                
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-slate-800 group-hover:text-amber-600 transition-colors">💡 ${rule.title}</h4>
+                        <span class="text-stone-400 group-hover:text-amber-500 transition-colors">▼</span>
+                    </div>
+                    <div class="text-slate-600 text-sm hidden mt-3 border-t border-stone-100 pt-3" id="rule-content-${index}">
+                        ${rule.content}
+                    </div>
+                `;
+
+                card.onclick = () => {
+                    const contentDiv = document.getElementById(`rule-content-${index}`);
+                    const icon = card.querySelector('span');
+                    if (contentDiv.classList.contains('hidden')) {
+                        contentDiv.classList.remove('hidden');
+                        icon.innerText = '▲';
+                        card.classList.add('border-amber-200', 'bg-amber-50/30');
+                    } else {
+                        contentDiv.classList.add('hidden');
+                        icon.innerText = '▼';
+                        card.classList.remove('border-amber-200', 'bg-amber-50/30');
+                    }
+                };
+
+                rulesContainer.appendChild(card);
+            });
+        }
+
+        document.getElementById('markDoneBtn').addEventListener('click', () => {
+            state.completedSteps.add(state.currentStep);
+            
+            if (state.currentStep < tutorialData.length) {
+                state.currentStep++;
+            }
+            
+            updateChart();
+            renderNavigation();
+            renderContent();
+        });
+
+        document.head.insertAdjacentHTML('beforeend', '<style>@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }</style>');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            renderNavigation();
+            renderContent();
+            renderRules();
+        });
+
+    </script>
+</body>
+</html>
