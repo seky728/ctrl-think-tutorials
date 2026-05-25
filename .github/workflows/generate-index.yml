@@ -1,0 +1,33 @@
+name: Generate Tutorial Index
+
+on:
+  push:
+    branches:
+      - master # nebo main
+
+jobs:
+  build:
+    runs-alone: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kód
+        uses: actions/checkout@v4
+
+      - name: Vygenerovat index.html
+        run: |
+          echo "<!DOCTYPE html><html><head><title>Ctrl+Think Tutorials</title></head><body>" > index.html
+          echo "<h1>Ctrl+Think - Seznam tutoriálů</h1><ul>" >> index.html
+          for file in *.html; do
+            if [ "$file" != "index.html" ]; then
+              echo "<li><a href='$file'>${file%.html}</a></li>" >> index.html
+            fi
+          done
+          echo "</ul></body></html>" >> index.html
+
+      - name: Commit a Push změn
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add index.html
+          git commit -m "Automatická aktualizace rozcestníku" || exit 0
+          git push
